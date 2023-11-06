@@ -1,0 +1,12 @@
+{
+    "https://api.shinyapps.io": {
+        "server_url": "https://api.shinyapps.io",
+        "filename": "/Users/walkerlittle/Polling-Data-Manager",
+        "app_url": "https://co-efficient.shinyapps.io/python-shiny/",
+        "app_id": 9782015,
+        "app_guid": null,
+        "title": "Python-Shiny",
+        "app_mode": "python-shiny",
+        "app_store_version": 1
+    }
+}

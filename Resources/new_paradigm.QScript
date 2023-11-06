@@ -1,0 +1,25 @@
+class CustomPage {
+  name;
+  copy;
+  description;
+
+  constructor(question) {}
+
+  execute() {
+    // Your code goes here
+  }
+}
+
+class Head2Head extends CustomPage {
+  constructor() {
+    super();
+    this.name = "Head2Head";
+    this.description = "Head2Head";
+    this.version = "1.0";
+    this.minimumQDSVersion = "18.0";
+  }
+
+  execute() {
+    // Your code goes here
+  }
+}

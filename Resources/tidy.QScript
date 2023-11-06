@@ -1,0 +1,461 @@
+log("Starting script");
+includeWeb("QScript Selection Functions");
+assert(fileFormatVersion() >= 7.12);
+
+if (runMode == "Desktop") {
+  includeFile("Selection examples.QScript");
+  testSelectFunctions();
+}
+
+var data_file = project.dataFiles[0];
+var labels_file = project.dataFiles[1];
+var xnames_file = project.dataFiles[2];
+
+var raw = project.dataFiles[0].questions;
+var questions = [];
+var cross = [];
+var tables = [];
+
+for (var i = 0; i < raw.length; i++) {
+  if (raw[i].name.startsWith("Q") && !raw[i].name.startsWith("Q_")) {
+    raw[i].variableSetStructure = "Nominal";
+    questions.push(raw[i]);
+  }
+  if (raw[i].name.startsWith("X")) {
+    raw[i].variableSetStructure = "Nominal";
+    cross.push(raw[i]);
+  }
+}
+
+template_pages = project.report.subItems;
+
+intro = template_pages[template_pages.length - 3];
+methodology = template_pages[template_pages.length - 2];
+
+top_lines = template_pages[0];
+one_page = template_pages[1];
+one_page_2 = template_pages[2];
+two_page_1 = template_pages[3];
+two_page_2 = template_pages[4];
+three_page_1 = template_pages[5];
+three_page_2 = template_pages[6];
+three_page_3 = template_pages[7];
+
+function init(page) {
+  page.setSelectedRaw(page.subItems);
+
+  page.selectedItems().forEach(function (item) {
+    if (item.type == "R Output")
+      item.code = item.code.replace(/TemplateData.+?Questions\$/, "");
+  });
+}
+
+init(top_lines);
+init(one_page);
+init(one_page_2);
+init(two_page_1);
+init(two_page_2);
+init(three_page_1);
+init(three_page_2);
+init(three_page_3);
+
+top_lines_positions_full = [
+  [64, 111],
+  [383, 111],
+  [695, 111],
+  [64, 268],
+  [383, 268],
+  [695, 268],
+  [64, 429],
+  [383, 429],
+  [695, 429],
+  [64, 586],
+  [383, 586],
+  [695, 586],
+];
+
+top_lines_positions_small = [
+  [64, 111],
+  [383, 111],
+  [695, 111],
+  [64, 350],
+  [383, 350],
+  [695, 350],
+  [64, 586],
+  [383, 586],
+  [695, 586],
+];
+
+function top_lines_to_pages() {
+  tmp = intro;
+  per_page = top_lines_positions_small;
+  if (questions.length % 12 == 0) {
+    per_page = top_lines_positions_full;
+  } else if (questions.length % 9 == 0) {
+    per_page = top_lines_positions_small;
+    top_lines.setSelectedRaw(top_lines.subItems);
+    top_lines.selectedItems().forEach(function (item) {
+      if (item.type == "Table") {
+        num = parseInt(item.name.replace("table.Q", ""));
+        if (num > per_page.length) {
+          item.deleteItem(item);
+        } else {
+          item.left = per_page[num - 1][0];
+          item.top = per_page[num - 1][1];
+        }
+      } else if (item.type == "R Output") {
+        if (item.name.startsWith("r.output.label")) {
+          num = parseInt(item.name.replace("r.output.label", ""));
+          if (num > per_page.length || num > questions.length) {
+            item.deleteItem(item);
+          } else {
+            item.left = per_page[num - 1][0];
+            item.top = per_page[num - 1][1] - 24;
+          }
+        }
+      }
+    });
+  } else if (questions.length % 12 > questions.length % 9) {
+    per_page = top_lines_positions_full;
+  } else {
+    per_page = top_lines_positions_small;
+    top_lines.setSelectedRaw(top_lines.subItems);
+    top_lines.selectedItems().forEach(function (item) {
+      if (item.type == "Table") {
+        num = parseInt(item.name.replace("table.Q", ""));
+        if (num > per_page.length || num > questions.length) {
+          item.deleteItem(item);
+        } else {
+          item.left = per_page[num - 1][0];
+          item.top = per_page[num - 1][1];
+        }
+      } else if (item.type == "R Output") {
+        if (item.name.startsWith("r.output.label")) {
+          num = parseInt(item.name.replace("r.output.label", ""));
+          if (num > per_page.length || num > questions.length) {
+            item.deleteItem(item);
+          } else {
+            item.left = per_page[num - 1][0];
+            item.top = per_page[num - 1][1] - 24;
+          }
+        }
+      }
+    });
+  }
+
+  for (var i = 0; i < questions.length / per_page.length; i++) {
+    if (i == 0) {
+      tmp = project.report.copyAfter(top_lines, intro);
+      tmp.setSelectedRaw(tmp.subItems);
+      tmp.selectedItems().forEach(function (item) {
+        if (item.type == "Table") {
+          tables.push(item);
+        }
+      });
+
+      continue;
+    }
+    tmp = project.report.copyAfter(top_lines, tmp);
+    tmp.setSelectedRaw(tmp.subItems);
+    tmp.selectedItems().forEach(function (item) {
+      if (item.type == "Table") {
+        num = parseInt(item.primary.name.replace("Q", ""));
+        if (num + per_page.length * i > questions.length) {
+          item.deleteItem(item);
+        } else {
+          item.primary = questions[num + per_page.length * i - 1];
+          tables.push(item);
+        }
+      } else if (item.type == "R Output") {
+        num = parseInt(item.name.replace("r.output.label", ""));
+        if (num + per_page.length * i > questions.length) {
+          item.deleteItem(item);
+        } else {
+          item.name = "r.output.label" + parseInt(num + per_page.length * i);
+          item.code = item.code.replace(
+            /\+\d+/,
+            "+" + parseInt(num + per_page.length * i)
+          );
+          item.code = item.code.replace(
+            /Q\d+/,
+            "Q" + parseInt(num + per_page.length * i)
+          );
+        }
+      }
+    });
+  }
+  top_lines.deleteItem(top_lines);
+  top_lines = tmp;
+}
+
+function questions_to_pages(questions) {
+  tmp = top_lines;
+  for (var i = 0; i < questions.length; i++) {
+    var chart;
+    var positions = [];
+    length = 0;
+    for (j in questions[i].uniqueValues) {
+      if (!isNaN(questions[i].uniqueValues[j])) length++;
+    }
+
+    if (length >= 7) {
+      tmp = project.report.copyAfter(three_page_1, tmp);
+      tmp.name = questions[i].name + " 1";
+      tmp.setSelectedRaw(tmp.subItems);
+      tmp.selectedItems().forEach(function (item) {
+        num = parseInt(i) + 1;
+        if (item.name.startsWith("viz")) {
+          chart = item;
+        } else if (item.type == "Table") {
+          item.primary = questions[i];
+          positions.push([
+            item.left,
+            item.top,
+            item.left + item.width,
+            item.top + item.height,
+          ]);
+        } else if (item.type == "R Output") {
+          item.code = item.code.replace("+1", "+" + num);
+        }
+      });
+      chart.setGuiControlInputRaw("formTable", tables[i].guid);
+      actual_answer_options(tmp, questions[i]);
+      tmp = project.report.copyAfter(three_page_2, tmp);
+      tmp.name = questions[i].name + " 2";
+      tmp.setSelectedRaw(tmp.subItems);
+      tmp.selectedItems().forEach(function (item) {
+        if (item.type == "Table") {
+          item.primary = questions[i];
+          positions.push([
+            item.left,
+            item.top,
+            item.left + item.width,
+            item.top + item.height,
+          ]);
+        } else if (item.type == "R Output") {
+          item.code = item.code.replace("+1", "+" + parseInt(i + 1));
+        }
+      });
+      tmp = project.report.copyAfter(three_page_3, tmp);
+      tmp.name = questions[i].name + " 3";
+      tmp.setSelectedRaw(tmp.subItems);
+      tmp.selectedItems().forEach(function (item) {
+        num = parseInt(i) + 1;
+        if (item.type == "Table") {
+          item.primary = questions[i];
+          positions.push([
+            item.left,
+            item.top,
+            item.left + item.width,
+            item.top + item.height,
+          ]);
+        } else if (item.type == "R Output") {
+          item.code = item.code.replace("+1", "+" + num);
+        }
+      });
+    } else if (length >= 5) {
+      tmp = project.report.copyAfter(two_page_1, tmp);
+      tmp.name = questions[i].name + " 1";
+      tmp.setSelectedRaw(tmp.subItems);
+      tmp.selectedItems().forEach(function (item) {
+        num = parseInt(i) + 1;
+        if (item.name.startsWith("viz")) {
+          chart = item;
+        } else if (item.type == "Table") {
+          item.primary = questions[i];
+          positions.push([
+            item.left,
+            item.top,
+            item.left + item.width,
+            item.top + item.height,
+          ]);
+        } else if (item.type == "R Output") {
+          item.code = item.code.replace("+1", "+" + num);
+        }
+      });
+      chart.setGuiControlInputRaw("formTable", tables[i].guid);
+      actual_answer_options(tmp, questions[i]);
+      tmp = project.report.copyAfter(two_page_2, tmp);
+      tmp.name = questions[i].name + " 2";
+      tmp.setSelectedRaw(tmp.subItems);
+      tmp.selectedItems().forEach(function (item) {
+        num = parseInt(i) + 1;
+        if (item.name.startsWith("viz")) {
+          chart = item;
+        } else if (item.type == "Table") {
+          item.primary = questions[i];
+          positions.push([
+            item.left,
+            item.top,
+            item.left + item.width,
+            item.top + item.height,
+          ]);
+        } else if (item.type == "R Output") {
+          item.code = item.code.replace("+1", "+" + num);
+        }
+      });
+      chart.setGuiControlInputRaw("formTable", tables[i].guid);
+    } else if (length == 4) {
+      tmp = project.report.copyAfter(one_page_2, tmp);
+      tmp.name = questions[i].name;
+      tmp.setSelectedRaw(tmp.subItems);
+      tmp.selectedItems().forEach(function (item) {
+        num = parseInt(i) + 1;
+        if (item.name.startsWith("viz")) {
+          chart = item;
+        } else if (item.type == "Table") {
+          item.primary = questions[i];
+          positions.push([
+            item.left,
+            item.top,
+            item.left + item.width,
+            item.top + item.height,
+            item.fon,
+          ]);
+        } else if (item.type == "R Output") {
+          item.code = item.code.replace("+1", "+" + num);
+        }
+      });
+      chart.setGuiControlInputRaw("formTable", tables[i].guid);
+      actual_answer_options(tmp, questions[i]);
+    } else {
+      tmp = project.report.copyAfter(one_page, tmp);
+      tmp.name = questions[i].name;
+      tmp.setSelectedRaw(tmp.subItems);
+      tmp.selectedItems().forEach(function (item) {
+        num = parseInt(i) + 1;
+        if (item.name.startsWith("viz")) {
+          chart = item;
+        } else if (item.type == "Table") {
+          item.primary = questions[i];
+          positions.push([
+            item.left,
+            item.top,
+            item.left + item.width,
+            item.top + item.height,
+            item.fon,
+          ]);
+        } else if (item.type == "R Output") {
+          item.code = item.code.replace("+1", "+" + num);
+        }
+      });
+      chart.setGuiControlInputRaw("formTable", tables[i].guid);
+      actual_answer_options(tmp, questions[i]);
+    }
+  }
+  one_page.deleteItem(one_page);
+  one_page_2.deleteItem(one_page_2);
+  two_page_1.deleteItem(two_page_1);
+  two_page_2.deleteItem(two_page_2);
+  three_page_1.deleteItem(three_page_1);
+  three_page_2.deleteItem(three_page_2);
+  three_page_3.deleteItem(three_page_3);
+}
+
+function methodology_page() {
+  methodology.subItems[1].deleteItem(methodology.subItems[1]);
+  text = methodology.appendText();
+  html = Q.htmlBuilder();
+  title = {
+    font: "Trebuchet MS",
+    bold: true,
+    size: 12,
+    color: "#023160",
+  };
+  value = {
+    font: "Trebuchet MS",
+    size: 10,
+    color: "#023160",
+    bold: false,
+    underline: false,
+  };
+  html.append("Fielded On: ", title);
+  html.append("Add date to responses?", value);
+  html.append("\n-\n", value);
+
+  html.append("Method: ", title);
+
+  if (project.dataFiles[0].questions[1].dataReduction.contains("Landline")) {
+    html.append("Landline Interviews and ", value);
+  }
+  if (project.dataFiles[0].questions[1].dataReduction.contains("Cell")) {
+    html.append("Mobile Text Response", value);
+  }
+  if (project.dataFiles[0].questions[1].dataReduction.contains("live call")) {
+    html.append(" Online", value);
+  }
+  html.append("\n-\n", value);
+
+  html.append("Population & Sample Description: ", title);
+
+  html.append(project.dataFiles[0].questions[0].uniqueValues.length, value);
+  html.append(" ----Sample Description----", value);
+  html.append("\n-\n", value);
+
+  html.append("MoE: ", title);
+
+  html.append("+/- learn to calculate MoE", value);
+  html.append("\n-\n", value);
+  html.append("Weighting: ", title);
+
+  html.append("Autofill these: ", value);
+  html.append("\n-\n\n", value);
+  html.append("For information, contact:\n", value);
+  html.append("Ryan Munce\n", value);
+  html.append("President\n", value);
+  html.append("co/efficient\n", value);
+  html.append("ryan@coefficient.org\n", value);
+
+  text.content = html;
+  text.left = 33;
+  text.top = 151;
+  text.width = 266;
+  text.height = 408;
+}
+
+function actual_answer_options(tmp, question) {
+  text = tmp.appendText();
+  html = Q.htmlBuilder();
+  html.append("Actual answer options read:", {
+    font: "Open Sans",
+    bold: true,
+    size: 10,
+    color: "#004080",
+    underline: true,
+  });
+  html.setStyle({
+    font: "Arial",
+    size: 9,
+    color: "#004080",
+    bold: false,
+    underline: false,
+  });
+
+  html.appendBulletted(question.dataReduction.rowLabels);
+
+  text.content = html;
+  text.top = 65;
+  text.left = 640;
+  text.width = 310;
+  text.hiddenFromExportedViews = true;
+}
+
+function to_page(type = "Generic", answer_options = 3, question) {
+  if (answers <= 4) {
+    one_page(type, question);
+  }
+  if (answers <= 5) {
+    two_page(type, question);
+  }
+  if (answers <= 8) {
+    three_page(type, question);
+  }
+}
+
+function one_page(type, question) {}
+function two_page(type, question) {}
+function three_page(type, question) {}
+
+function top_lines_layout_engine(questions) {}
+
+function change_from_last_time(tmp, question) {}
